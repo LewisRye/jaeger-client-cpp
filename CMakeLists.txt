@@ -15,7 +15,7 @@ include(HunterGate)
 option(HUNTER_BUILD_SHARED_LIBS "Build Shared Library" ON)
 
 HunterGate(
-    URL "https://github.com/cpp-pm/hunter/archive/v0.25.7.tar.gz"
+    URL "https://github.com/cpp-pm/hunter/archive/v0.23.249.tar.gz"
     SHA1 "d45d77d8bba9da13e9290a180e0477e90accd89b"
     LOCAL # load `${CMAKE_CURRENT_LIST_DIR}/cmake/Hunter/config.cmake`
 )
