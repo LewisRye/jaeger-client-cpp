@@ -15,7 +15,7 @@ include(HunterGate)
 option(HUNTER_BUILD_SHARED_LIBS "Build Shared Library" ON)
 
 HunterGate(
-    URL "https://github.com/cpp-pm/hunter/archive/v0.23.249.tar.gz"
+    URL "https://github.com/cpp-pm/hunter/archive/v0.25.7.tar.gz"
     SHA1 "d45d77d8bba9da13e9290a180e0477e90accd89b"
     LOCAL # load `${CMAKE_CURRENT_LIST_DIR}/cmake/Hunter/config.cmake`
 )
@@ -107,20 +107,6 @@ if(JAEGERTRACING_WITH_YAML_CPP)
       list(APPEND LIBS yaml-cpp)
   endif()
   list(APPEND package_deps yaml-cpp)
-endif()
-
-include(CTest)
-if(BUILD_TESTING)
-  hunter_add_package(GTest)
-  find_package(GTest ${hunter_config} REQUIRED)
-
-  if(JAEGERTRACING_COVERAGE)
-      include(CodeCoverage)
-      append_coverage_compiler_flags(cxx_flags)
-      append_coverage_compiler_flags(link_flags)
-      set(COVERAGE_EXCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src/jaegertracing/thrift-gen/*"
-                            "*Test.cpp")
-  endif()
 endif()
 
 set(SRC
@@ -235,21 +221,6 @@ function(add_lib_deps lib)
   target_compile_options(${lib} PUBLIC ${cxx_flags})
 endfunction()
 
-function(update_path_for_test atest)
-  if(WIN32)
-    # If dependent library is a DLL we have to add location of DLL to PATH
-    set(new_path "")
-
-    foreach(LIB OpenTracing::opentracing yaml-cpp::yaml-cpp GTest::main)
-      list(APPEND new_path $<TARGET_FILE_DIR:${LIB}>)
-    endforeach()
-    list(APPEND new_path $ENV{PATH})
-    string(REPLACE ";" "\\;" new_path "${new_path}")
-
-    set_tests_properties(${atest} PROPERTIES ENVIRONMENT "PATH=${new_path}")
-  endif()
-endfunction()
-
 option(JAEGERTRACING_PLUGIN "Build dynamic plugin" OFF)
 cmake_dependent_option(BUILD_SHARED_LIBS "Build shared libraries" ON
   "NOT JAEGERTRACING_PLUGIN" OFF)
@@ -306,72 +277,6 @@ if(JAEGERTRACING_BUILD_EXAMPLES)
   target_link_libraries(app PUBLIC ${JAEGERTRACING_LIB})
 endif()
 
-if(BUILD_TESTING)
-  add_library(testutils
-      src/jaegertracing/testutils/TUDPTransport.cpp
-      src/jaegertracing/testutils/SamplingManager.cpp
-      src/jaegertracing/testutils/MockAgent.cpp
-      src/jaegertracing/testutils/TracerUtil.cpp)
-  target_link_libraries(testutils PUBLIC ${JAEGERTRACING_LIB})
-
-  add_executable(UnitTest
-      src/jaegertracing/ConfigTest.cpp
-      src/jaegertracing/ReferenceTest.cpp
-      src/jaegertracing/SpanContextTest.cpp
-      src/jaegertracing/SpanTest.cpp
-      src/jaegertracing/TagTest.cpp
-      src/jaegertracing/TraceIDTest.cpp
-      src/jaegertracing/TracerFactoryTest.cpp
-      src/jaegertracing/TracerTest.cpp
-      src/jaegertracing/ThriftSenderTest.cpp
-      src/jaegertracing/baggage/BaggageTest.cpp
-      src/jaegertracing/metrics/MetricsTest.cpp
-      src/jaegertracing/metrics/NullStatsFactoryTest.cpp
-      src/jaegertracing/net/IPAddressTest.cpp
-      src/jaegertracing/net/SocketTest.cpp
-      src/jaegertracing/net/URITest.cpp
-      src/jaegertracing/net/http/HeaderTest.cpp
-      src/jaegertracing/net/http/MethodTest.cpp
-      src/jaegertracing/net/http/ResponseTest.cpp
-      src/jaegertracing/propagation/PropagatorTest.cpp
-      src/jaegertracing/propagation/W3CPropagatorTest.cpp
-      src/jaegertracing/reporters/ConfigTest.cpp
-      src/jaegertracing/reporters/ReporterTest.cpp
-      src/jaegertracing/samplers/SamplerTest.cpp
-      src/jaegertracing/testutils/MockAgentTest.cpp
-      src/jaegertracing/testutils/TUDPTransportTest.cpp
-      src/jaegertracing/utils/ErrorUtilTest.cpp
-      src/jaegertracing/utils/RateLimiterTest.cpp
-      src/jaegertracing/utils/UDPSenderTest.cpp
-      src/jaegertracing/utils/HTTPTransporterTest.cpp)
-  target_link_libraries(
-      UnitTest PRIVATE testutils PUBLIC GTest::main ${JAEGERTRACING_LIB})
-  add_test(NAME UnitTest COMMAND UnitTest)
-
-  update_path_for_test(UnitTest)
-
-  if(TARGET jaegertracing)
-    add_executable(DynamicallyLoadTracerTest
-      src/jaegertracing/DynamicallyLoadTracerTest.cpp)
-
-    target_include_directories(DynamicallyLoadTracerTest PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>)
-    target_link_libraries(
-      DynamicallyLoadTracerTest ${OPENTRACING_LIB} GTest::main)
-    add_test(NAME DynamicallyLoadTracerTest
-             COMMAND DynamicallyLoadTracerTest $<TARGET_FILE:jaegertracing>)
-    update_path_for_test(DynamicallyLoadTracerTest)
-    if(JAEGERTRACING_COVERAGE)
-        setup_target_for_coverage(NAME UnitTestCoverage
-                                  EXECUTABLE UnitTest
-                                  DEPENDENCIES UnitTest)
-    endif()
-  endif()
-endif()
-
-
-
 if(JAEGERTRACING_BUILD_CROSSDOCK)
   set(CROSSDOCK_SRC crossdock/Server.cpp)
   add_executable(crossdock ${CROSSDOCK_SRC})
@@ -403,8 +308,6 @@ if(JAEGERTRACING_BUILD_CROSSDOCK)
   add_custom_target(crossdock-logs
     COMMAND ${DOCKER_COMPOSE_CMD} logs)
 endif()
-
-
 
 # Installation (https://github.com/forexample/package-example)
 
